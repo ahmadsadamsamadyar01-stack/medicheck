@@ -1,230 +1,124 @@
-import { useState, useEffect, useRef } from "react";
-
-const LANGS = {
-  en: {
-    dir: "ltr", title: "MediCheck", subtitle: "AI Symptom Analysis",
-    placeholder: "Describe your symptoms in detail...", send: "Analyze",
-    clear: "New Session",
-    disclaimer: "⚠️ For educational purposes only. Always consult a qualified physician.",
-    welcome: "Hello! I'm MediCheck, your AI medical assistant.\n\nDescribe your symptoms and I'll provide an educational analysis. This does not replace professional medical advice.",
-  },
-  fa: {
-    dir: "rtl", title: "مدی‌چک", subtitle: "تحلیل هوشمند علائم",
-    placeholder: "علائم خود را با جزئیات توضیح دهید...", send: "تحلیل",
-    clear: "جلسه جدید",
-    disclaimer: "⚠️ فقط برای اهداف آموزشی. همیشه با پزشک مشورت کنید.",
-    welcome: "سلام! من مدی‌چک هستم، دستیار پزشکی هوشمند شما.\n\nعلائم خود را توضیح دهید تا تحلیل آموزشی ارائه دهم.",
-  },
-  ru: {
-    dir: "ltr", title: "МедиЧек", subtitle: "ИИ-анализ симптомов",
-    placeholder: "Опишите ваши симптомы подробно...", send: "Анализ",
-    clear: "Новая сессия",
-    disclaimer: "⚠️ Только для образовательных целей. Всегда консультируйтесь с врачом.",
-    welcome: "Здравствуйте! Я МедиЧек.\n\nОпишите симптомы, и я предоставлю образовательный анализ.",
-  },
-  kk: {
-    dir: "ltr", title: "МедиЧек", subtitle: "ЖИ Симптом Талдауы",
-    placeholder: "Белгілеріңізді толығырақ сипаттаңыз...", send: "Талдау",
-    clear: "Жаңа сеанс",
-    disclaimer: "⚠️ Тек білім беру мақсатында. Әрдайым дәрігермен кеңесіңіз.",
-    welcome: "Сәлем! Мен МедиЧекпін.\n\nБелгілеріңізді сипаттаңыз, мен білім беру талдауын ұсынамын.",
-  },
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>MediCheck — AI Symptom Analyzer</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#060d14;--surface:#0d1a24;--accent:#00e5b0;--accent2:#0077ff;--danger:#ff4d6d;--text:#e8f4f0;--muted:#5a7a8a;--border:rgba(0,229,176,.12)}
+html,body{height:100%;font-family:'Segoe UI','Noto Sans Arabic',sans-serif;background:var(--bg);color:var(--text)}
+body{display:flex;flex-direction:column;min-height:100vh;background-image:radial-gradient(ellipse at 20% 20%,rgba(0,119,255,.08) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(0,229,176,.06) 0%,transparent 60%)}
+header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:13px 18px;border-bottom:1px solid var(--border);background:rgba(6,13,20,.94);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100}
+.brand{display:flex;align-items:center;gap:10px}
+.logo{width:36px;height:36px;background:linear-gradient(135deg,#0077ff,#00e5b0);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.brand-text h1{font-weight:800;font-size:1.15rem;letter-spacing:-.03em;line-height:1}
+.brand-text p{font-size:.6rem;color:var(--accent);font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-top:1px}
+.ecg-svg{width:110px;height:36px;flex-shrink:0}
+.ecg-path{stroke-dasharray:300;stroke-dashoffset:300;animation:ecgDraw 2s ease infinite}
+@keyframes ecgDraw{0%{stroke-dashoffset:300;opacity:1}70%{stroke-dashoffset:0;opacity:1}90%{opacity:.3}100%{stroke-dashoffset:-300;opacity:0}}
+.controls{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.lbtn{padding:5px 10px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:inherit;font-size:.7rem;cursor:pointer;transition:all .2s}
+.lbtn.on{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:700}
+.lbtn:hover:not(.on){border-color:var(--accent);color:var(--accent)}
+.cbtn{padding:5px 12px;border-radius:20px;border:1px solid rgba(255,77,109,.3);background:transparent;color:var(--danger);font-family:inherit;font-size:.7rem;cursor:pointer}
+.disclaimer{margin:10px 16px 0;padding:8px 14px;background:rgba(255,77,109,.07);border:1px solid rgba(255,77,109,.18);border-radius:9px;font-size:.68rem;color:#ff8fa3;text-align:center;line-height:1.5}
+.chat{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.chat::-webkit-scrollbar{width:4px}
+.chat::-webkit-scrollbar-thumb{background:rgba(0,229,176,.2);border-radius:4px}
+.msg{display:flex;gap:8px;animation:msgIn .3s ease}
+@keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.msg.user{flex-direction:row-reverse}
+.msg.user.rtl{flex-direction:row}
+.msg.assistant.rtl{flex-direction:row-reverse}
+.avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;align-self:flex-end}
+.msg.user .avatar{background:var(--accent2)}
+.msg.assistant .avatar{background:var(--surface);border:1px solid var(--border)}
+.bubble{max-width:78%;padding:11px 15px;border-radius:14px;font-size:.86rem;line-height:1.75;white-space:pre-wrap;word-break:break-word}
+.msg.user .bubble{background:linear-gradient(135deg,#003d6b,#005c9a);color:#fff}
+.msg.assistant .bubble{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+.typing{display:flex;gap:5px;align-items:center;padding:3px 0}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--accent);display:block;animation:bounce 1.2s infinite}
+.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,80%,100%{transform:scale(.7);opacity:.4}40%{transform:scale(1);opacity:1}}
+.input-area{padding:11px 16px;border-top:1px solid var(--border);background:rgba(6,13,20,.96);backdrop-filter:blur(12px);display:flex;gap:8px;align-items:flex-end}
+#msg-input{flex:1;padding:10px 13px;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;font-size:.85rem;resize:none;min-height:44px;max-height:120px;line-height:1.5;outline:none;transition:border-color .2s}
+#msg-input:focus{border-color:rgba(0,229,176,.45)}
+#msg-input::placeholder{color:var(--muted)}
+.sbtn{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,#0077ff,#00e5b0);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.sbtn:hover:not(:disabled){transform:scale(1.05);box-shadow:0 0 18px rgba(0,229,176,.35)}
+.sbtn:disabled{opacity:.35;cursor:not-allowed}
+@keyframes spin{to{transform:rotate(360deg)}}
+.credits{text-align:center;padding:6px;font-size:.6rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">🫀</div>
+    <div class="brand-text"><h1 id="h-title">MediCheck</h1><p id="h-subtitle">AI Symptom Analysis</p></div>
+  </div>
+  <svg class="ecg-svg" viewBox="0 0 160 80">
+    <path class="ecg-path" d="M0,40 L30,40 L40,10 L50,70 L60,40 L80,40 L90,20 L100,60 L110,40 L160,40" fill="none" stroke="#00e5b0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <div class="controls">
+    <button class="lbtn on" onclick="setLang('en',this)">English</button>
+    <button class="lbtn" onclick="setLang('fa',this)">فارسی</button>
+    <button class="lbtn" onclick="setLang('ru',this)">Русский</button>
+    <button class="lbtn" onclick="setLang('kk',this)">Қазақша</button>
+    <button class="cbtn" id="clear-btn" onclick="clearChat()">New Session</button>
+  </div>
+</header>
+<div class="disclaimer" id="disclaimer">⚠️ For educational purposes only. Always consult a qualified physician.</div>
+<div class="chat" id="chat"></div>
+<div class="input-area">
+  <textarea id="msg-input" rows="1" placeholder="Describe your symptoms in detail..." oninput="autoResize(this)" onkeydown="handleKey(event)"></textarea>
+  <button class="sbtn" id="send-btn" onclick="sendMsg()" disabled>
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+  </button>
+</div>
+<div class="credits">MediCheck v1.0 · Al-Farabi Kazakh National University · Digital Competition 2025 · Powered by Gemini AI</div>
+<script>
+const API_KEY="AIzaSyAQ5JXIeIvLVKo7-tayOWNVF2uNTWGvuB0";
+const LANGS={
+  en:{dir:"ltr",title:"MediCheck",subtitle:"AI Symptom Analysis",placeholder:"Describe your symptoms in detail...",clear:"New Session",disclaimer:"⚠️ For educational purposes only. Always consult a qualified physician.",welcome:"Hello! I'm MediCheck, your AI medical assistant.\n\nDescribe your symptoms and I'll provide an educational analysis. This does not replace professional medical advice."},
+  fa:{dir:"rtl",title:"مدی‌چک",subtitle:"تحلیل هوشمند علائم",placeholder:"علائم خود را با جزئیات توضیح دهید...",clear:"جلسه جدید",disclaimer:"⚠️ فقط برای اهداف آموزشی. همیشه با پزشک متخصص مشورت کنید.",welcome:"سلام! من مدی‌چک هستم، دستیار پزشکی هوشمند شما.\n\nعلائم خود را توضیح دهید تا تحلیل آموزشی ارائه دهم."},
+  ru:{dir:"ltr",title:"МедиЧек",subtitle:"ИИ-анализ симптомов",placeholder:"Опишите ваши симптомы подробно...",clear:"Новая сессия",disclaimer:"⚠️ Только для образовательных целей. Всегда консультируйтесь с врачом.",welcome:"Здравствуйте! Я МедиЧек.\n\nОпишите симптомы, и я предоставлю образовательный анализ."},
+  kk:{dir:"ltr",title:"МедиЧек",subtitle:"ЖИ Симптом Талдауы",placeholder:"Белгілеріңізді толығырақ сипаттаңыз...",clear:"Жаңа сеанс",disclaimer:"⚠️ Тек білім беру мақсатында. Әрдайым дәрігермен кеңесіңіз.",welcome:"Сәлем! Мен МедиЧекпін.\n\nБелгілеріңізді сипаттаңыз, мен білім беру талдауын ұсынамын."},
 };
-
-const LANG_LABELS = { en: "English", fa: "فارسی", ru: "Русский", kk: "Қазақша" };
-const ECG_PATH = "M0,40 L30,40 L40,10 L50,70 L60,40 L80,40 L90,20 L100,60 L110,40 L160,40";
-
-function EcgLine() {
-  return (
-    <svg viewBox="0 0 160 80" style={{width:110,height:36,flexShrink:0}}>
-      <path d={ECG_PATH} fill="none" stroke="#00e5b0" strokeWidth="2.5"
-        strokeLinecap="round" strokeLinejoin="round"
-        style={{strokeDasharray:300,strokeDashoffset:300,animation:"ecgDraw 2s ease infinite"}}/>
-    </svg>
-  );
+let currentLang="en",history=[],isLoading=false;
+function setLang(l,btn){currentLang=l;const t=LANGS[l];document.getElementById("h-title").textContent=t.title;document.getElementById("h-subtitle").textContent=t.subtitle;document.getElementById("disclaimer").textContent=t.disclaimer;document.getElementById("clear-btn").textContent=t.clear;const inp=document.getElementById("msg-input");inp.placeholder=t.placeholder;inp.dir=t.dir;document.getElementById("chat").dir=t.dir;document.querySelectorAll(".lbtn").forEach(b=>b.classList.remove("on"));btn.classList.add("on");clearChat();}
+function clearChat(){history=[];document.getElementById("chat").innerHTML="";addMessage("assistant",LANGS[currentLang].welcome);}
+function addMessage(role,text){const t=LANGS[currentLang],isUser=role==="user",isRtl=t.dir==="rtl";const div=document.createElement("div");div.className=`msg ${role}${isRtl?" rtl":""}`;const av=document.createElement("div");av.className="avatar";av.textContent=isUser?"👤":"🤖";const bub=document.createElement("div");bub.className="bubble";bub.textContent=text;bub.dir=t.dir;div.appendChild(av);div.appendChild(bub);document.getElementById("chat").appendChild(div);div.scrollIntoView({behavior:"smooth",block:"end"});}
+function addTyping(){const t=LANGS[currentLang],isRtl=t.dir==="rtl";const div=document.createElement("div");div.className=`msg assistant${isRtl?" rtl":""}`;div.id="typing";const av=document.createElement("div");av.className="avatar";av.textContent="🤖";const bub=document.createElement("div");bub.className="bubble";bub.innerHTML='<div class="typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';div.appendChild(av);div.appendChild(bub);document.getElementById("chat").appendChild(div);div.scrollIntoView({behavior:"smooth",block:"end"});}
+function removeTyping(){const el=document.getElementById("typing");if(el)el.remove();}
+function setSendLoading(v){isLoading=v;const btn=document.getElementById("send-btn");if(v){btn.disabled=true;btn.innerHTML=`<svg width="17" height="17" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="white" stroke-width="2.5" fill="none" stroke-dasharray="28" stroke-dashoffset="8" style="transform-origin:center;animation:spin 1s linear infinite"/></svg>`;}else{btn.disabled=!document.getElementById("msg-input").value.trim();btn.innerHTML=`<svg width="17" height="17" viewBox="0 0 24 24" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>`;}}
+async function sendMsg(){
+  const inp=document.getElementById("msg-input");
+  const text=inp.value.trim();
+  if(!text||isLoading)return;
+  inp.value="";inp.style.height="44px";
+  setSendLoading(true);
+  const langName={en:"English",fa:"Farsi/Dari",ru:"Russian",kk:"Kazakh"}[currentLang];
+  history.push({role:"user",parts:[{text}]});
+  addMessage("user",text);
+  addTyping();
+  const sys=`You are MediCheck, a multilingual AI medical assistant for educational purposes only. Always respond in ${langName}. Format: 1. 🔍 Symptom Analysis 2. 🩺 Possible Conditions 3. 👨‍⚕️ Recommended Specialist 4. 🚨 Warning Signs 5. 💡 General Advice. Remind this is educational only.`;
+  try{
+    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({system_instruction:{parts:[{text:sys}]},contents:history,generationConfig:{maxOutputTokens:1024}})
+    });
+    const data=await res.json();
+    if(data.error){removeTyping();addMessage("assistant","⚠️ "+data.error.message);}
+    else{const reply=data.candidates?.[0]?.content?.parts?.[0]?.text||"No response.";history.push({role:"model",parts:[{text:reply}]});removeTyping();addMessage("assistant",reply);}
+  }catch(e){removeTyping();addMessage("assistant","⚠️ Error: "+e.message);}
+  setSendLoading(false);
 }
-
-export default function App() {
-  const [lang, setLang] = useState("en");
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const endRef = useRef(null);
-  const t = LANGS[lang];
-  const isRtl = t.dir === "rtl";
-
-  useEffect(() => {
-    setMessages([{ role: "assistant", text: LANGS[lang].welcome }]);
-    setInput("");
-  }, [lang]);
-
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
-
-  const send = async () => {
-    if (!input.trim() || loading) return;
-
-    const userText = input.trim();
-    const newHistory = [...messages, { role: "user", text: userText }];
-    setMessages(newHistory);
-    setInput("");
-    setLoading(true);
-
-    const systemPrompt = `You are MediCheck, a multilingual AI medical assistant for educational purposes only.
-Always respond in ${LANG_LABELS[lang]}.
-
-Analyze the symptoms and respond with:
-1. 🔍 Symptom Analysis
-2. 🩺 Possible Conditions (most to least likely)
-3. 👨‍⚕️ Recommended Specialist
-4. 🚨 Warning Signs (when to go to emergency)
-5. 💡 General Advice
-
-Always end by reminding this is for educational purposes only, not a real diagnosis.`;
-
-    try {
-      const apiMessages = newHistory.map(m => ({ role: m.role, content: m.text }));
-
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1024,
-          system: systemPrompt,
-          messages: apiMessages,
-        }),
-      });
-
-      const text = await response.text();
-
-      let reply = "";
-      try {
-        const data = JSON.parse(text);
-        if (data.content && Array.isArray(data.content)) {
-          reply = data.content.map(b => b.text || "").join("").trim();
-        } else if (data.error) {
-          reply = `⚠️ API Error: ${data.error.message}`;
-        } else {
-          reply = `⚠️ Unexpected response: ${text.slice(0, 200)}`;
-        }
-      } catch {
-        reply = `⚠️ Parse error. Raw: ${text.slice(0, 300)}`;
-      }
-
-      setMessages(prev => [...prev, { role: "assistant", text: reply }]);
-    } catch (e) {
-      setMessages(prev => [...prev, { role: "assistant", text: `⚠️ Fetch error: ${e.message}` }]);
-    }
-
-    setLoading(false);
-  };
-
-  const handleKey = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } };
-  const clear = () => { setMessages([{ role: "assistant", text: LANGS[lang].welcome }]); setInput(""); };
-
-  const bubbleStyle = (isUser) => ({
-    maxWidth: "78%",
-    padding: "11px 15px",
-    borderRadius: 14,
-    fontSize: ".86rem",
-    lineHeight: 1.75,
-    whiteSpace: "pre-wrap",
-    wordBreak: "break-word",
-    background: isUser ? "linear-gradient(135deg,#003d6b,#005c9a)" : "#0d1a24",
-    border: isUser ? "none" : "1px solid rgba(0,229,176,.12)",
-    color: "#e8f4f0",
-  });
-
-  return (
-    <div dir={t.dir} style={{minHeight:"100vh",display:"flex",flexDirection:"column",background:"#060d14",color:"#e8f4f0",fontFamily:"'Syne','Noto Sans Arabic',sans-serif",backgroundImage:"radial-gradient(ellipse at 20% 20%,rgba(0,119,255,.08) 0%,transparent 60%)"}}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Noto+Sans+Arabic:wght@400;600&display=swap');
-        @keyframes ecgDraw{0%{stroke-dashoffset:300;opacity:1}70%{stroke-dashoffset:0;opacity:1}90%{opacity:.3}100%{stroke-dashoffset:-300;opacity:0}}
-        @keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes bounce{0%,80%,100%{transform:scale(.7);opacity:.4}40%{transform:scale(1);opacity:1}}
-        @keyframes spin{to{transform:rotate(360deg)}}
-        .chat::-webkit-scrollbar{width:4px}
-        .chat::-webkit-scrollbar-thumb{background:rgba(0,229,176,.2);border-radius:4px}
-        .lbtn{padding:5px 10px;border-radius:20px;border:1px solid rgba(0,229,176,.15);background:transparent;color:#5a7a8a;font-family:inherit;font-size:.7rem;cursor:pointer;transition:all .2s}
-        .lbtn.on{background:#00e5b0;color:#060d14;border-color:#00e5b0;font-weight:700}
-        .lbtn:hover:not(.on){border-color:#00e5b0;color:#00e5b0}
-        .cbtn{padding:5px 12px;border-radius:20px;border:1px solid rgba(255,77,109,.3);background:transparent;color:#ff4d6d;font-family:inherit;font-size:.7rem;cursor:pointer}
-        .cbtn:hover{background:rgba(255,77,109,.1)}
-        .sbtn{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,#0077ff,#00e5b0);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
-        .sbtn:hover:not(:disabled){transform:scale(1.05);box-shadow:0 0 18px rgba(0,229,176,.35)}
-        .sbtn:disabled{opacity:.35;cursor:not-allowed}
-        textarea{scrollbar-width:thin;outline:none}
-      `}</style>
-
-      {/* HEADER */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8,padding:"13px 18px",borderBottom:"1px solid rgba(0,229,176,.1)",background:"rgba(6,13,20,.94)",backdropFilter:"blur(12px)",position:"sticky",top:0,zIndex:100}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:36,height:36,background:"linear-gradient(135deg,#0077ff,#00e5b0)",borderRadius:9,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🫀</div>
-          <div>
-            <div style={{fontWeight:800,fontSize:"1.15rem",letterSpacing:"-.03em",lineHeight:1}}>{t.title}</div>
-            <div style={{fontSize:".6rem",color:"#00e5b0",fontWeight:700,letterSpacing:".1em",textTransform:"uppercase",marginTop:1}}>{t.subtitle}</div>
-          </div>
-        </div>
-        <EcgLine />
-        <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
-          {Object.keys(LANGS).map(l => (
-            <button key={l} className={`lbtn${lang===l?" on":""}`} onClick={()=>setLang(l)}>{LANG_LABELS[l]}</button>
-          ))}
-          <button className="cbtn" onClick={clear}>{t.clear}</button>
-        </div>
-      </div>
-
-      {/* DISCLAIMER */}
-      <div style={{margin:"10px 16px 0",padding:"8px 14px",background:"rgba(255,77,109,.07)",border:"1px solid rgba(255,77,109,.18)",borderRadius:9,fontSize:".68rem",color:"#ff8fa3",textAlign:"center",lineHeight:1.5}}>{t.disclaimer}</div>
-
-      {/* MESSAGES */}
-      <div className="chat" style={{flex:1,overflowY:"auto",padding:"14px 16px",display:"flex",flexDirection:"column",gap:12}}>
-        {messages.map((m, i) => {
-          const isUser = m.role === "user";
-          return (
-            <div key={i} style={{display:"flex",gap:8,animation:"msgIn .3s ease",
-              flexDirection: isRtl ? (isUser?"row":"row-reverse") : (isUser?"row-reverse":"row")}}>
-              <div style={{width:30,height:30,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0,alignSelf:"flex-end",background:isUser?"#0077ff":"#0d1a24",border:isUser?"none":"1px solid rgba(0,229,176,.15)"}}>{isUser?"👤":"🤖"}</div>
-              <div style={bubbleStyle(isUser)}>{m.text}</div>
-            </div>
-          );
-        })}
-
-        {loading && (
-          <div style={{display:"flex",gap:8,flexDirection:isRtl?"row-reverse":"row"}}>
-            <div style={{width:30,height:30,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,background:"#0d1a24",border:"1px solid rgba(0,229,176,.15)"}}>🤖</div>
-            <div style={{padding:"13px 15px",background:"#0d1a24",border:"1px solid rgba(0,229,176,.12)",borderRadius:14,display:"flex",gap:5,alignItems:"center"}}>
-              {[0,.2,.4].map((d,i)=><span key={i} style={{width:6,height:6,borderRadius:"50%",background:"#00e5b0",display:"block",animation:`bounce 1.2s ${d}s infinite`}}/>)}
-            </div>
-          </div>
-        )}
-        <div ref={endRef}/>
-      </div>
-
-      {/* INPUT */}
-      <div style={{padding:"11px 16px",borderTop:"1px solid rgba(0,229,176,.1)",background:"rgba(6,13,20,.96)",backdropFilter:"blur(12px)",display:"flex",gap:8,alignItems:"flex-end"}}>
-        <textarea
-          value={input}
-          onChange={e=>setInput(e.target.value)}
-          onKeyDown={handleKey}
-          placeholder={t.placeholder}
-          disabled={loading}
-          rows={1}
-          style={{flex:1,padding:"10px 13px",borderRadius:12,border:"1px solid rgba(0,229,176,.15)",background:"#0d1a24",color:"#e8f4f0",fontFamily:"inherit",fontSize:".85rem",resize:"none",minHeight:44,maxHeight:120,lineHeight:1.5,direction:t.dir,transition:"border-color .2s"}}
-          onFocus={e=>e.target.style.borderColor="rgba(0,229,176,.45)"}
-          onBlur={e=>e.target.style.borderColor="rgba(0,229,176,.15)"}
-        />
-        <button className="sbtn" onClick={send} disabled={loading||!input.trim()}>
-          {loading
-            ? <svg width="17" height="17" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="white" strokeWidth="2.5" fill="none" strokeDasharray="28" strokeDashoffset="8" style={{transformOrigin:"center",animation:"spin 1s linear infinite"}}/></svg>
-            : <svg width="17" height="17" viewBox="0 0 24 24" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-          }
-        </button>
-      </div>
-    </div>
-  );
-}
+function handleKey(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMsg();}}
+function autoResize(el){el.style.height="44px";el.style.height=Math.min(el.scrollHeight,120)+"px";document.getElementById("send-btn").disabled=!el.value.trim()||isLoading;}
+clearChat();
+</script>
+</body>
+</html>
